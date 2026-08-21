@@ -1,0 +1,13 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment variables & local configs
+.env
+*.log

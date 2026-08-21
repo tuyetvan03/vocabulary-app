@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocabFlow CEFR - Hệ Thống Luyện Tập & Kiểm Tra Từ Vựng Tiếng Anh Thông Minh</title>
+    <!-- Font & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Third party libraries for docx and image OCR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+    <div class="background-glow glow-1"></div>
+    <div class="background-glow glow-2"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <h1 id="app-title-display">VocabFlow CEFR</h1>
+                    <p class="subtitle">Dòng chảy từ vựng - Học tự nhiên & kiểm tra thông minh (CEFR A1 - C2)</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button type="button" id="btn-toggle-theme" class="theme-toggle-btn" title="Chuyển Giao diện Sáng / Tối">
+                    <i class="fa-solid fa-sun"></i> <span id="theme-btn-text">Giao diện Sáng</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Lesson Selector Bar -->
+        <section class="lesson-bar-card">
+            <div class="lesson-bar-header">
+                <label class="lesson-field-label"><i class="fa-solid fa-folder-open"></i> Bài học đang chọn (có thể chọn nhiều bài):</label>
+            </div>
+
+            <div class="lesson-bar-grid">
+                <!-- Button 1: Multi-lesson picker -->
+                <div class="lesson-picker-container">
+                    <button type="button" id="btn-open-multi-lesson-picker" class="multi-lesson-picker-btn">
+                        <span id="multi-lesson-picker-label"><i class="fa-solid fa-layer-group"></i> 📚 Bài học đang chọn</span>
+                        <i class="fa-solid fa-chevron-down caret-icon"></i>
+                    </button>
+
+                    <!-- Dropdown Box for Selecting Multiple Lessons -->
+                    <div id="multi-lesson-dropdown" class="multi-lesson-dropdown hidden">
+                        <div class="multi-lesson-dropdown-header">
+                            <span><i class="fa-solid fa-list-check"></i> Tích chọn các bài học muốn học chung:</span>
+                            <div class="multi-lesson-dropdown-actions">
+                                <button type="button" id="btn-multi-lesson-select-all" class="tool-btn-sm"><i class="fa-solid fa-square-check"></i> Tất cả</button>
+                                <button type="button" id="btn-multi-lesson-deselect-all" class="tool-btn-sm"><i class="fa-regular fa-square"></i> Bỏ chọn</button>
+                            </div>
+                        </div>
+                        <div id="multi-lesson-checkboxes-container" class="multi-lesson-checkboxes-list">
+                            <!-- Rendered by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Button 2: Stats -->
+                <button type="button" id="btn-show-vocab-stats" class="btn-vocab-stats" onclick="openVocabStatsModal()" title="Nhấp để xem bảng thống kê số từ vựng theo từng cấp độ (A1 - C2)">
+                    <i class="fa-solid fa-chart-pie"></i> Thống kê (<strong id="active-lesson-count">1999 từ</strong>)
+                </button>
+
+                <!-- Button 3: Folder Manager -->
+                <button type="button" id="btn-open-folder-mgr" class="tool-btn highlight-btn">
+                    <i class="fa-solid fa-folder-tree"></i> Quản lý Thư Mục & Bài Học
+                </button>
+            </div>
+        </section>
+
+        <!-- Main Controls -->
+        <section class="control-card">
+            <div class="control-row">
+                <!-- Search Box -->
+                <div class="input-group search-group">
+                    <label for="vocab-search-input"><i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm từ vựng:</label>
+                    <div class="search-input-wrapper">
+                        <input type="text" id="vocab-search-input" placeholder="Gõ từ Tiếng Anh hoặc Nghĩa Tiếng Việt...">
+                        <button type="button" id="btn-clear-search" class="clear-search-btn hidden" title="Xóa tìm kiếm">&times;</button>
+                    </div>
+                </div>
+
+                <!-- Input n -->
+                <div class="input-group">
+                    <label for="vocab-n-input"><i class="fa-solid fa-hashtag"></i> Số lượng từ (n):</label>
+                    <input type="number" id="vocab-n-input" min="1" max="1999" value="10" placeholder="Nhập số n...">
+                </div>
+
+                <!-- Filter Level -->
+                <div class="input-group">
+                    <label><i class="fa-solid fa-filter"></i> Lọc cấp độ & Từ khó:</label>
+                    <div class="level-chips">
+                        <button type="button" class="level-chip active" id="chip-btn-all" data-level="ALL">Tất cả</button>
+                        
+                        <div class="level-select-wrapper">
+                            <select id="level-dropdown-select" class="level-dropdown-select" title="Chọn cấp độ (A1, A2, B1, B2, C1, C2)">
+                                <option value="" disabled selected hidden>🎯 Chọn cấp độ (A1 - C2)...</option>
+                                <option value="A1">🟢 Cấp A1</option>
+                                <option value="A2">🟢 Cấp A2</option>
+                                <option value="B1">🔵 Cấp B1</option>
+                                <option value="B2">🔵 Cấp B2</option>
+                                <option value="C1">🟣 Cấp C1</option>
+                                <option value="C2">🟣 Cấp C2</option>
+                            </select>
+                        </div>
+
+                        <button type="button" class="level-chip chip-star" data-level="BOOKMARKS"><i class="fa-solid fa-star"></i> Từ khó nhớ</button>
+                    </div>
+                </div>
+
+                <!-- Generate Action -->
+                <div class="action-group">
+                    <button type="button" id="btn-generate" class="btn-primary">
+                        <i class="fa-solid fa-shuffle"></i> Tạo n từ ngẫu nhiên
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Output Header & Tools -->
+        <section class="output-header-bar">
+            <div class="result-info">
+                <h2>Kết quả: <span id="result-count">10</span> từ vựng</h2>
+                <span class="view-mode-badge" id="current-filter-badge">Cấp độ: Tất cả</span>
+            </div>
+
+            <div class="toolbar-actions">
+                <div class="view-toggle">
+                    <button type="button" class="toggle-btn active" id="btn-view-cards" title="Xem dạng thẻ">
+                        <i class="fa-solid fa-grip"></i> Thẻ
+                    </button>
+                    <button type="button" class="toggle-btn" id="btn-view-table" title="Xem dạng bảng">
+                        <i class="fa-solid fa-list-check"></i> Bảng
+                    </button>
+                    <button type="button" class="toggle-btn" id="btn-view-flashcard" title="Chế độ Lật thẻ">
+                        <i class="fa-solid fa-clone"></i> Lật Thẻ
+                    </button>
+                    <button type="button" class="toggle-btn quiz-btn-toggle" id="btn-view-quiz" title="Làm bài kiểm tra trắc nghiệm">
+                        <i class="fa-solid fa-pen-to-square"></i> Kiểm Tra 📝
+                    </button>
+                </div>
+
+                <div class="export-btns">
+                    <button type="button" class="tool-btn danger-btn hidden" id="btn-clear-bookmarks" title="Xóa tất cả từ khó nhớ">
+                        <i class="fa-solid fa-trash-can"></i> Bỏ đánh dấu tất cả
+                    </button>
+                    <button type="button" class="tool-btn" id="btn-copy" title="Sao chép danh sách">
+                        <i class="fa-regular fa-copy"></i> Sao chép
+                    </button>
+                    <button type="button" class="tool-btn" id="btn-export-txt" title="Tải file TXT">
+                        <i class="fa-solid fa-file-arrow-down"></i> Tải TXT
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Result Views -->
+        <!-- 1. Grid Cards View -->
+        <div id="view-cards-container" class="cards-grid"></div>
+
+        <!-- 2. Table View -->
+        <div id="view-table-container" class="table-container hidden">
+            <table class="vocab-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">⭐</th>
+                        <th style="width: 50px;">STT</th>
+                        <th>Từ vựng (Word)</th>
+                        <th>Loại từ</th>
+                        <th>Cấp độ</th>
+                        <th>Nghĩa tiếng Việt</th>
+                        <th style="width: 100px; text-align: center;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+
+        <!-- 3. Flashcard Flip Mode -->
+        <div id="view-flashcard-container" class="flashcard-deck hidden">
+            <div class="flashcard-box">
+                <div class="flashcard-inner" id="flashcard-element">
+                    <div class="flashcard-front">
+                        <button class="fc-star-btn" id="fc-star-btn" title="Đánh dấu từ khó nhớ"><i class="fa-regular fa-star"></i></button>
+                        <div class="card-num" id="fc-num">1 / 10</div>
+                        <div class="fc-word" id="fc-word">word</div>
+                        <div class="fc-pos" id="fc-pos">n.</div>
+                        <div class="fc-hint">Chạm hoặc nhấn Spacebar để lật thẻ</div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="fc-badge" id="fc-level">B2</div>
+                        <div class="fc-back-title" id="fc-word-back">word</div>
+                        <div class="fc-meaning" id="fc-meaning">nghĩa tiếng Việt</div>
+                        <div class="fc-dict-actions">
+                            <button class="fc-speak-btn" id="fc-btn-speak"><i class="fa-solid fa-volume-high"></i> Nghe phát âm</button>
+                            <button type="button" class="fc-speak-btn" id="fc-btn-note"><i class="fa-solid fa-note-sticky"></i> Ghi chú</button>
+                            <a class="fc-dict-link" id="fc-dict-cambridge" target="_blank" href="#"><i class="fa-solid fa-external-link"></i> Tra từ điển</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flashcard-nav">
+                <button type="button" class="fc-nav-btn" id="fc-prev"><i class="fa-solid fa-chevron-left"></i> Từ trước</button>
+                <span id="fc-counter">1 / 10</span>
+                <button type="button" class="fc-nav-btn" id="fc-next">Từ tiếp <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </div>
+
+        <!-- 4. Multiple Choice Quiz / Test Mode -->
+        <div id="view-quiz-container" class="quiz-container hidden">
+            <!-- Quiz Configuration & Header -->
+            <div class="quiz-header-card">
+                <div class="quiz-setup">
+                    <div class="quiz-setup-group">
+                        <label for="quiz-source-select"><i class="fa-solid fa-layer-group"></i> Nguồn câu hỏi:</label>
+                        <select id="quiz-source-select" class="quiz-select">
+                            <option value="CURRENT">Từ danh sách ngẫu nhiên vừa tạo</option>
+                            <option value="BOOKMARKS">Từ danh sách "Từ khó nhớ"</option>
+                            <option value="ALL">Từ tất cả bài học đã chọn</option>
+                        </select>
+                    </div>
+                    <div class="quiz-setup-group">
+                        <label for="quiz-mode-select"><i class="fa-solid fa-graduation-cap"></i> Chế độ kiểm tra:</label>
+                        <select id="quiz-mode-select" class="quiz-select">
+                            <option value="PRACTICE">⚡ Luyện tập (Xem đáp án tức thì)</option>
+                            <option value="EXAM">📝 Thi thử (Xem điểm & đáp án sau khi nộp)</option>
+                        </select>
+                    </div>
+                    <div class="quiz-setup-group">
+                        <label for="quiz-type-select"><i class="fa-solid fa-sliders"></i> Dạng câu hỏi:</label>
+                        <select id="quiz-type-select" class="quiz-select">
+                            <option value="MIXED">🔀 Hỗn hợp tất cả dạng câu hỏi</option>
+                            <option value="LISTEN_ALL">🔊 Nghe phát âm (Tất cả)</option>
+                            <option value="LISTEN_TO_EN">🔊 Nghe phát âm ➔ Chọn từ Tiếng Anh</option>
+                            <option value="LISTEN_TO_VI">🔊 Nghe phát âm ➔ Chọn nghĩa Tiếng Việt</option>
+                            <option value="EN_TO_VI">📝 Từ Tiếng Anh ➔ Chọn nghĩa Tiếng Việt</option>
+                            <option value="VI_TO_EN">🔤 Nghĩa Tiếng Việt ➔ Chọn từ Tiếng Anh</option>
+                        </select>
+                    </div>
+                    <button type="button" id="btn-start-quiz" class="btn-primary">
+                        <i class="fa-solid fa-play"></i> Bắt đầu bài kiểm tra
+                    </button>
+                    <button type="button" id="btn-quiz-retry-header" class="tool-btn hidden" title="Tạo bộ câu hỏi mới">
+                        <i class="fa-solid fa-rotate-right"></i> Làm lại đề mới
+                    </button>
+                </div>
+
+                <div id="quiz-progress-bar-container" class="quiz-progress-bar-container hidden">
+                    <div class="quiz-progress-info">
+                        <span>Câu hỏi <strong id="quiz-current-idx">1</strong> / <strong id="quiz-total-idx">10</strong></span>
+                        <span id="quiz-live-score-container">Điểm: <strong id="quiz-live-score">0</strong> / <span id="quiz-live-answered">0</span></span>
+                    </div>
+                    <div class="quiz-progress-track">
+                        <div id="quiz-progress-fill" class="quiz-progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Question Card -->
+            <div id="quiz-question-box" class="quiz-question-box hidden">
+                <div class="question-header">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" id="btn-prev-question-header" class="tool-btn-sm" title="Quay lại câu trước (Phím ◄)"><i class="fa-solid fa-chevron-left"></i> Câu trước</button>
+                        <span class="question-tag" id="q-tag">CÂU HỎI 1</span>
+                        <button type="button" id="btn-next-question-header" class="tool-btn-sm" title="Chuyển câu tiếp theo (Phím ►)">Câu tiếp <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <span class="question-pos" id="q-pos">n. [B2]</span>
+                </div>
+                
+                <div class="question-title" id="q-title">word / nghĩa</div>
+                <p class="question-subtext" id="q-subtext">Chọn đáp án đúng nhất trong 4 lựa chọn dưới đây:</p>
+
+                <!-- 4 Multiple Choice Options (A, B, C, D) -->
+                <div class="options-grid" id="options-grid">
+                    <button type="button" class="option-card" data-opt="0">
+                        <span class="opt-letter">A</span>
+                        <span class="opt-text" id="opt-text-0">Lựa chọn A</span>
+                    </button>
+                    <button type="button" class="option-card" data-opt="1">
+                        <span class="opt-letter">B</span>
+                        <span class="opt-text" id="opt-text-1">Lựa chọn B</span>
+                    </button>
+                    <button type="button" class="option-card" data-opt="2">
+                        <span class="opt-letter">C</span>
+                        <span class="opt-text" id="opt-text-2">Lựa chọn C</span>
+                    </button>
+                    <button type="button" class="option-card" data-opt="3">
+                        <span class="opt-letter">D</span>
+                        <span class="opt-text" id="opt-text-3">Lựa chọn D</span>
+                    </button>
+                </div>
+
+                <!-- Explanation & Next Action -->
+                <div id="question-feedback" class="question-feedback hidden">
+                    <div class="feedback-msg" id="feedback-msg">Chính xác! 🎉</div>
+                    <div class="quiz-nav-btns" style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" id="btn-prev-question" class="tool-btn" title="Quay lại câu trước (Mũi tên Trái ◄)">
+                            <i class="fa-solid fa-arrow-left"></i> Câu trước
+                        </button>
+                        <button type="button" id="btn-next-question" class="btn-primary" title="Chuyển sang câu tiếp theo (Mũi tên Phải ►)">
+                            Câu tiếp theo <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Summary Results Card -->
+            <div id="quiz-results-card" class="quiz-results-card hidden">
+                <div class="results-icon">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h2>Hoàn thành bài kiểm tra!</h2>
+                <div class="score-circle">
+                    <span id="final-score-percent">80%</span>
+                    <small id="final-score-text">8 / 10 câu đúng</small>
+                </div>
+
+                <p id="results-message" class="results-message">Tuyệt vời! Bạn đang ghi nhớ từ vựng rất tốt.</p>
+
+                <div class="results-actions">
+                    <button type="button" id="btn-retry-quiz" class="btn-primary">
+                        <i class="fa-solid fa-rotate-right"></i> Làm lại bài thi
+                    </button>
+                    <button type="button" id="btn-save-wrong-stars" class="tool-btn highlight-btn">
+                        <i class="fa-solid fa-star"></i> Đánh dấu từ làm sai vào "Từ khó nhớ"
+                    </button>
+                </div>
+
+                <!-- Detailed Exam Review Breakdown -->
+                <div id="exam-review-container" class="exam-review-container hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 1: QUẢN LÝ THƯ MỤC & BÀI HỌC (FOLDER MANAGER) -->
+    <!-- ========================================== -->
+    <div id="modal-folder-mgr" class="modal-overlay hidden">
+        <div class="modal-card modal-large">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-folder-tree"></i> Quản Lý Thư Mục & Bài Học Từ Vựng
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" id="btn-sync-to-source" class="tool-btn highlight-btn" title="Ghi trực tiếp tất cả thư mục & bài học hiện tại vào file user_folders.json">
+                        <i class="fa-solid fa-floppy-disk"></i> Đồng bộ vào Source Code
+                    </button>
+                    <button type="button" class="btn-modal-close" id="btn-close-folder-mgr">&times;</button>
+                </div>
+            </div>
+            
+            <div class="modal-body folder-mgr-body">
+                <!-- Left Sidebar: Folder List -->
+                <div class="folder-sidebar">
+                    <div class="sidebar-header">
+                        <span>THƯ MỤC CỦA BẠN</span>
+                        <button type="button" id="btn-add-folder" class="btn-icon-add" title="Thêm thư mục mới">
+                            <i class="fa-solid fa-folder-plus"></i> Tạo mới
+                        </button>
+                    </div>
+                    <div id="folder-list-container" class="folder-list">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Right Content: Lessons inside selected Folder -->
+                <div class="folder-content">
+                    <div class="folder-detail-header">
+                        <div>
+                            <h3 id="current-folder-name">Thư mục bài học</h3>
+                            <p id="current-folder-desc" class="folder-desc-text">Danh sách bài học của bạn</p>
+                        </div>
+                        <div class="folder-detail-actions">
+                            <button type="button" id="btn-edit-folder" class="tool-btn-sm" title="Đổi tên thư mục"><i class="fa-solid fa-pen"></i> Sửa</button>
+                            <button type="button" id="btn-delete-folder" class="tool-btn-sm danger-btn" style="background:#ef4444 !important; color:#ffffff !important; font-weight:700; border:none; padding:8px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Xóa thư mục này"><i class="fa-solid fa-trash-can"></i> Xóa Thư Mục Này</button>
+                            <button type="button" id="btn-add-lesson" class="btn-primary-sm">
+                                <i class="fa-solid fa-plus"></i> Tạo Bài Học Mới
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="lessons-grid" class="lessons-grid">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: XEM & QUẢN LÝ TỪ VỰNG TRONG BÀI HỌC -->
+    <!-- ========================================== -->
+    <div id="modal-manage-lesson-words" class="modal-overlay hidden">
+        <div class="modal-card modal-xlarge" style="max-width: 950px; width: 95vw;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-list-check"></i> Quản Lý Từ Vựng: <strong id="lesson-words-modal-title" style="color: #818cf8; margin-left: 6px;">Bài học</strong>
+                    <span id="lesson-words-modal-count" style="font-size: 13px; font-weight: normal; color: var(--text-muted); margin-left: 10px;">(0 từ)</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" id="btn-add-word-to-lesson" class="btn-primary-sm" style="padding: 6px 14px; font-size: 13px;">
+                        <i class="fa-solid fa-plus"></i> Thêm từ mới
+                    </button>
+                    <button type="button" class="btn-modal-close" id="btn-close-lesson-words-modal">&times;</button>
+                </div>
+            </div>
+
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 18px 24px;">
+                <!-- Search & Status Top Bar -->
+                <div class="lesson-words-top-bar" style="display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 260px; position: relative;">
+                        <input type="text" id="lesson-words-search-input" placeholder="🔍 Tìm kiếm từ Tiếng Anh hoặc Nghĩa Tiếng Việt trong bài..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.6); color: #fff; font-size: 13px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 13px; color: var(--text-muted);">Hiển thị: <strong id="lesson-words-filtered-count" style="color: var(--accent-cyan);">0</strong> từ</span>
+                    </div>
+                </div>
+
+                <!-- Add/Edit Inline Form Card -->
+                <div id="lesson-word-editor-card" class="lesson-word-editor-card hidden" style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="font-weight: 700; font-size: 14px; color: #818cf8; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="editor-form-title"><i class="fa-solid fa-pen-to-square"></i> Thêm / Chỉnh Sửa Từ Vựng</span>
+                        <button type="button" id="btn-cancel-edit-lesson-word" class="tool-btn-sm" style="padding: 2px 8px; font-size: 12px;">Hủy</button>
+                    </div>
+                    <input type="hidden" id="edit-word-index" value="-1">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">TỪ TIẾNG ANH (*)</label>
+                            <input type="text" id="edit-word-input" placeholder="e.g. abolish" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">LOẠI TỪ</label>
+                            <input type="text" id="edit-pos-input" placeholder="e.g. v. / n. / adj." style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">CẤP ĐỘ</label>
+                            <select id="edit-level-input" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; font-size: 13px;">
+                                <option value="B1">B1</option>
+                                <option value="B2" selected>B2</option>
+                                <option value="C1">C1</option>
+                                <option value="C2">C2</option>
+                                <option value="A1">A1</option>
+                                <option value="A2">A2</option>
+                            </select>
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">NGHĨA TIẾNG VIỆT (*)</label>
+                            <input type="text" id="edit-meaning-input" placeholder="e.g. bãi bỏ, hủy bỏ" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; font-size: 13px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+                        <button type="button" id="btn-save-lesson-word" class="btn-primary-sm" style="padding: 6px 16px; font-size: 13px;">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu từ vựng
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Word List Table -->
+                <div class="lesson-words-table-wrapper" style="max-height: 480px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px;">
+                    <table class="preview-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: rgba(30, 41, 59, 0.95); position: sticky; top: 0; z-index: 5;">
+                                <th style="width: 50px; text-align: center;">STT</th>
+                                <th style="width: 180px;">Từ Tiếng Anh</th>
+                                <th style="width: 90px;">Loại từ</th>
+                                <th style="width: 80px; text-align: center;">Cấp độ</th>
+                                <th>Nghĩa Tiếng Việt</th>
+                                <th style="width: 110px; text-align: center;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lesson-words-table-body">
+                            <!-- Rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" id="btn-open-import-from-words-modal" class="tool-btn-sm" style="padding: 6px 12px; font-size: 12px;">
+                    <i class="fa-solid fa-file-import"></i> Nạp thêm từ file / text
+                </button>
+                <button type="button" id="btn-close-lesson-words-modal-footer" class="tool-btn-sm" style="padding: 6px 16px; font-size: 13px;">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 2: THÊM TỪ VỰNG & NẠP FILE (IMPORT VOCAB MODAL) -->
+    <!-- ========================================== -->
+    <div id="modal-import-vocab" class="modal-overlay hidden">
+        <div class="modal-card modal-xlarge">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-file-circle-plus"></i> Thêm Từ Vựng / Nạp File Bài Học
+                </div>
+                <button type="button" class="btn-modal-close" id="btn-close-import-vocab">&times;</button>
+            </div>
+
+            <div class="modal-body import-vocab-body">
+                <!-- Select Target Lesson -->
+                <div class="target-lesson-card">
+                    <label for="import-target-lesson-select"><i class="fa-solid fa-layer-group"></i> Chọn bài học để lưu từ vào:</label>
+                    <select id="import-target-lesson-select" class="quiz-select">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Tabs Header -->
+                <div class="import-tabs">
+                    <button type="button" class="import-tab active" data-tab="direct">
+                        <i class="fa-solid fa-keyboard"></i> Dán Văn Bản / Nhập Trực Tiếp
+                    </button>
+                    <button type="button" class="import-tab" data-tab="word">
+                        <i class="fa-solid fa-file-word"></i> File Word (.docx)
+                    </button>
+                    <button type="button" class="import-tab" data-tab="image">
+                        <i class="fa-solid fa-file-image"></i> File Ảnh / OCR (.png, .jpg)
+                    </button>
+                </div>
+
+                <!-- Tab Contents -->
+                <!-- Tab 1: Direct / Bulk Paste -->
+                <div id="import-tab-direct" class="tab-content active">
+                    <div class="import-sub-grid">
+                        <!-- Single Form -->
+                        <div class="single-word-form">
+                            <h4><i class="fa-solid fa-plus"></i> Nhập 1 từ mới:</h4>
+                            <div class="form-group">
+                                <label>Từ Tiếng Anh (*):</label>
+                                <input type="text" id="inp-word" placeholder="Ví dụ: serendipity">
+                            </div>
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label>Loại từ:</label>
+                                    <input type="text" id="inp-pos" placeholder="n., v., adj...">
+                                </div>
+                                <div class="form-group">
+                                    <label>Cấp độ:</label>
+                                    <select id="inp-level">
+                                        <option value="B1">B1</option>
+                                        <option value="B2" selected>B2</option>
+                                        <option value="C1">C1</option>
+                                        <option value="C2">C2</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Nghĩa Tiếng Việt (*):</label>
+                                <input type="text" id="inp-meaning" placeholder="Ví dụ: sự tình cờ may mắn">
+                            </div>
+                            <div class="form-group">
+                                <label>Ví dụ minh họa (tùy chọn):</label>
+                                <input type="text" id="inp-example" placeholder="Ví dụ: Finding this book was pure serendipity.">
+                            </div>
+                            <button type="button" id="btn-add-single-word" class="btn-primary-sm">
+                                <i class="fa-solid fa-check"></i> Thêm vào danh sách xem trước
+                            </button>
+                        </div>
+
+                        <!-- Bulk Text Area -->
+                        <div class="bulk-paste-area">
+                            <h4><i class="fa-solid fa-paste"></i> Hoặc dán danh sách từ hàng loạt:</h4>
+                            <p class="help-text">Mỗi dòng 1 từ. Định dạng hỗ trợ: <code>Từ - Nghĩa</code>, <code>Từ : Nghĩa</code> hoặc <code>Từ (n.) - Nghĩa</code></p>
+                            <textarea id="bulk-text-input" rows="8" placeholder="Ví dụ:
+resilient - adj. - kiên cường
+empathy : n. : sự đồng cảm
+meticulous - tỉ mỉ, cẩn thận"></textarea>
+                            <button type="button" id="btn-parse-bulk-text" class="btn-secondary-sm">
+                                <i class="fa-solid fa-bolt"></i> Trích xuất từ đoạn văn bản
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Word file -->
+                <div id="import-tab-word" class="tab-content hidden">
+                    <div class="dropzone" id="dropzone-word">
+                        <i class="fa-solid fa-file-word drop-icon"></i>
+                        <p>Kéo và thả file Word (.docx) vào đây hoặc bấm để chọn file</p>
+                        <input type="file" id="input-file-word" accept=".docx,.doc" class="hidden">
+                        <button type="button" class="btn-secondary-sm" id="btn-select-word-file">
+                            <i class="fa-solid fa-folder-open"></i> Chọn File Word
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Image file OCR -->
+                <div id="import-tab-image" class="tab-content hidden">
+                    <div class="dropzone" id="dropzone-image">
+                        <i class="fa-solid fa-file-image drop-icon"></i>
+                        <p>Kéo và thả file Ảnh từ vựng (.jpg, .png, .webp) để trích xuất chữ OCR</p>
+                        <input type="file" id="input-file-image" accept="image/*" class="hidden">
+                        <button type="button" class="btn-secondary-sm" id="btn-select-image-file">
+                            <i class="fa-solid fa-camera"></i> Chọn File Ảnh
+                        </button>
+                    </div>
+                    <div id="ocr-status" class="ocr-status hidden">
+                        <i class="fa-solid fa-spinner fa-spin"></i> <span id="ocr-msg">Đang quét chữ từ ảnh...</span>
+                    </div>
+                </div>
+
+                <!-- Preview Extracted Words Area -->
+                <div class="import-preview-section">
+                    <div class="preview-header">
+                        <h4><i class="fa-solid fa-list-check"></i> Danh sách từ vựng chuẩn bị nạp (<span id="preview-count">0</span> từ)</h4>
+                        <button type="button" id="btn-clear-preview" class="tool-btn-sm danger-btn"><i class="fa-solid fa-eraser"></i> Xóa bảng</button>
+                    </div>
+                    <div class="preview-table-wrapper">
+                        <table class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;">STT</th>
+                                    <th>Từ Tiếng Anh</th>
+                                    <th>Loại từ</th>
+                                    <th>Cấp độ</th>
+                                    <th>Nghĩa Tiếng Việt</th>
+                                    <th style="width: 60px;">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preview-table-body">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                                        Chưa có từ nào. Nhập trực tiếp hoặc tải file Word / PDF / Ảnh để trích xuất từ vựng.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="tool-btn" id="btn-cancel-import">Hủy bỏ</button>
+                <button type="button" id="btn-save-imported-words" class="btn-primary" disabled>
+                    <i class="fa-solid fa-floppy-disk"></i> Lưu Tất Cả Vào Bài Học
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 4: THỐNG KÊ CẤP ĐỘ TỪ VỰNG (STATS MODAL) -->
+    <!-- ========================================== -->
+    <div id="modal-vocab-stats" class="modal-overlay hidden">
+        <div class="modal-card modal-md" style="width: 560px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-chart-column"></i> Biểu Đồ Thống Kê Từ Vựng Theo Cấp Độ
+                </div>
+                <button type="button" class="btn-modal-close" id="btn-close-vocab-stats-modal">&times;</button>
+            </div>
+
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="stats-summary-box">
+                    <div class="stats-summary-title" id="stats-dataset-title">📚 Bài học đang chọn</div>
+                    <div class="stats-summary-total">Tổng số từ vựng: <strong id="stats-total-words-count" style="color: #818cf8; font-size: 16px;">0</strong> từ</div>
+                </div>
+
+                <!-- Visual Bar Chart -->
+                <div class="stats-chart-wrapper">
+                    <div id="stats-bar-chart-box" class="stats-bar-chart-box">
+                        <!-- Bar chart dynamically rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" id="btn-close-vocab-stats-footer" class="tool-btn">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 3: GHI CHÚ TỪ VỰNG (WORD NOTE MODAL) -->
+    <!-- ========================================== -->
+    <div id="modal-word-note" class="modal-overlay hidden">
+        <div class="modal-card modal-md" style="width: 540px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-note-sticky"></i> Ghi Chú Cá Nhân: <strong id="note-modal-word-title" style="color: #818cf8; margin-left: 6px;">word</strong>
+                </div>
+                <button type="button" class="btn-modal-close" id="btn-close-note-modal">&times;</button>
+            </div>
+
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+                <p style="font-size: 13px; color: var(--text-muted);">
+                    Ghi lại ghi chú cá nhân, mẹo ghi nhớ, ngữ cảnh sử dụng hoặc ví dụ của riêng bạn cho từ vựng này (có thể để trống):
+                </p>
+                <textarea id="note-text-input" rows="5" placeholder="Ví dụ: Từ này thường đi với giới từ 'on'. Mẹo nhớ: serendipity = sự may mắn tình cờ..."></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" id="btn-clear-note" class="tool-btn danger-btn"><i class="fa-solid fa-trash-can"></i> Xóa ghi chú</button>
+                <button type="button" id="btn-save-note" class="btn-primary-sm"><i class="fa-solid fa-floppy-disk"></i> Lưu ghi chú</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">
+        <i class="fa-solid fa-circle-check"></i> <span id="toast-msg">Đã sao chép vào bộ nhớ tạm!</span>
+    </div>
+
+    <script src="app.js?v=2.2"></script>
+</body>
+</html>
